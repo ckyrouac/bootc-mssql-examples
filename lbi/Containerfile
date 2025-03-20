@@ -1,0 +1,18 @@
+FROM quay.io/fedora/fedora-bootc:41
+
+COPY usr usr
+COPY opt opt
+
+RUN <<EOF
+    set -euxo pipefail
+
+    # demo script setup
+    chmod 755 /opt/demo/mssql_demo.sh
+
+    # open the mssql port
+    dnf -y install firewalld
+    firewall-offline-cmd --zone=public --add-port=1433/tcp
+
+    # bind the mssql image to the bootc image
+    ln -s /usr/share/containers/systemd/mssql.container /usr/lib/bootc/bound-images.d/mssql.container
+EOF

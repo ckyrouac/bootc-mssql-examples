@@ -1,0 +1,23 @@
+[Unit]
+Description=mssql server
+
+[Container]
+Image=mcr.microsoft.com/mssql/rhel/server:2022-latest
+GlobalArgs=--storage-opt=additionalimagestore=/usr/lib/bootc/storage
+ContainerName=mssql
+HostName=mssql
+PublishPort=1433:1433
+Environment=ACCEPT_EULA=Y
+
+# Mount the demo scripts into the container
+Volume=/opt/demo:/opt/demo
+
+# Hardcoding this for simplicity.
+# In a production environment, this should be set by the build system.
+Environment=MSSQL_SA_PASSWORD=Pizzaisg00d!
+
+[Service]
+Restart=never
+
+[Install]
+WantedBy=multi-user.target
