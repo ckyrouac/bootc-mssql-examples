@@ -1,10 +1,16 @@
-FROM quay.io/fedora/fedora-bootc:41
+FROM registry.redhat.io/rhel9/rhel-bootc
 
 COPY usr usr
 COPY opt opt
 
 RUN <<EOF
     set -euxo pipefail
+
+    # Install bootc from copr to include latest fixes for running mssql as an LBI
+    # this is necessary until there is a new bootc release
+    dnf install -y 'dnf*-command(copr)'
+    dnf copr enable -y packit/bootc-dev-bootc-1198 centos-stream-9-x86_64
+    dnf install -y system-reinstall-bootc-202503181437.g2b8cfd35f5-1.el9.x86_64 bootc-debuginfo-202503181437.g2b8cfd35f5-1.el9.x86_64 bootc-202503181437.g2b8cfd35f5-1.el9.x86_64 system-reinstall-bootc-debuginfo-202503181437.g2b8cfd35f5-1.el9.x86_64 bootc-debugsource-202503181437.g2b8cfd35f5-1.el9.x86_64
 
     # demo script setup
     chmod 755 /opt/demo/mssql_demo.sh
