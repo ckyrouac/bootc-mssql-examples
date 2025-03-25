@@ -1,25 +1,5 @@
 #!/bin/bash
 
-MSSQL_setup() {
-    # Configure MSSQL
-    read -p "
-    Let's configure the database instance. Ansible can 
-    easily automate this in the real world, but for now
-    let's just run this script
-        
-    MSSQL_SA_PASSWORD='Pizzaisg00d!' 
-    MSSQL_PID='evaluation' 
-    /opt/mssql/bin/mssql-conf -n setup accept-eula
-
-    ....don't tell the security narcs about me showing a fake password ;)    
-    "
-    echo ""
-    MSSQL_SA_PASSWORD='Pizzaisg00d!' \
-    MSSQL_PID='evaluation' \
-    /opt/mssql/bin/mssql-conf -n setup accept-eula
-    echo ""
-}
-
 MSSQL_test() {
         #Test connection
         read -p "
@@ -63,9 +43,6 @@ DB_test() {
         echo ""
 }
 
-
-
-MSSQL_setup
 MSSQL_test
 DB_restore
 DB_test

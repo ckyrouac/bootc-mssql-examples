@@ -1,24 +1,33 @@
 FROM registry.redhat.io/rhel9/rhel-bootc
 
 RUN <<EOF
+set -euxo pipefail
 
-#Minor adaptations from https://learn.microsoft.com/en-us/sql/linux/quickstart-install-connect-red-hat?view=sql-server-ver16&tabs=rhel9
+# Add the mssql yum repos
 curl -o /etc/yum.repos.d/mssql-server.repo https://packages.microsoft.com/config/rhel/9/mssql-server-2022.repo
 curl https://packages.microsoft.com/config/rhel/9/prod.repo | sudo tee /etc/yum.repos.d/mssql-release.repo
 
-yum install -y firewalld tuned tuned-profiles-mssql mssql-server mssql-server-selinux
-ACCEPT_EULA=Y yum install -y mssql-tools18 unixODBC-devel
+# Accept the MSSQL EULA
+export ACCEPT_EULA=Y
 
-#Will run post deployment
-#/opt/mssql/bin/mssql-conf setup
+# Install mssql and dependencies
+dnf install -y firewalld tuned tuned-profiles-mssql mssql-server mssql-server-selinux mssql-tools18 unixODBC-devel
 
-#systemctl status mssql-server
+# Initial setup with a temporary SA password.
+# In a production deployment,
+# this password should be set via a build variable or as a post boot step.
+MSSQL_SA_PASSWORD='Pizzaisg00d!' /opt/mssql/bin/mssql-conf -n set-sa-password
 
-#sudo firewall-cmd --zone=public --add-port=1433/tcp --permanent
-#sudo firewall-cmd --reload
+# Set the mssql edition
+MSSQL_PID='evaluation' /opt/mssql/bin/mssql-conf -n set-edition
+
+# Enable the mssql service to start on boot
+systemctl enable mssql-server.service
+
+# Open the mssql port
 firewall-offline-cmd --zone=public --add-port=1433/tcp
 
-#why is this still a thing?
+# Add mssql binary directory to root's $PATH
 mkdir /var/roothome
 echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bash_profile
 
@@ -39,5 +48,19 @@ COPY usr usr
 ADD --chown=mssql:mssql AdventureWorks2022.bak /opt
 ADD --chown=mssql:mssql restore.sql /opt
 ADD --chmod=755 --chown=mssql:mssql mssql_demo.sh /opt
+
+
+# TODO:
+# - RAID
+# - filesystem layout (RAID, how to point mssql to /data, /transactions, /logs)
+# - show how to upgrade -> bootc upgrade
+# - rollbacks -> bootc rollback
+# - manage data section
+# - nofiles
+# - disable last accessed time
+# - FUA (?)
+# - C-states (not covered by tuneD)
+# - SQL Server Agent
+
 
 RUN bootc container lint
