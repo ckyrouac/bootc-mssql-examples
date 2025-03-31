@@ -1,5 +1,17 @@
 FROM registry.redhat.io/rhel9/rhel-bootc
 
+COPY usr usr
+
+# Create user/group early to be used with demo data
+RUN groupadd -g 1000 mssql && \
+    useradd -u 1000 -g mssql mssql
+
+# Add the demo data early so modifications of the big RUN block don't cause
+# these layers to be rebuilt
+ADD --chown=mssql:mssql AdventureWorks2022.bak /opt
+ADD --chown=mssql:mssql restore.sql /opt
+ADD --chmod=755 --chown=mssql:mssql mssql_demo.sh /opt
+
 RUN <<EOF
 set -euxo pipefail
 
@@ -20,6 +32,21 @@ MSSQL_SA_PASSWORD='Pizzaisg00d!' /opt/mssql/bin/mssql-conf -n set-sa-password
 
 # Set the mssql edition
 MSSQL_PID='evaluation' /opt/mssql/bin/mssql-conf -n set-edition
+
+# Create the mount points for each logical volume.
+# Each of these will be backed by a RAID array
+# and mounted as a logical volume during the anaconda install
+# via the kickstart config
+mkdir -p /var/mssql/data
+mkdir -p /var/mssql/logs
+
+# Use the RAID drives as the default location for mssql data and logs
+# TODO: this doesn't work
+# /opt/mssql/bin/mssql-conf set filelocation.defaultdatadir /var/mssql/data
+# /opt/mssql/bin/mssql-conf set filelocation.defaultlogdir /var/mssql/logs
+# /opt/mssql/bin/mssql-conf set filelocation.defaultbackupdir /var/mssql/data
+# /opt/mssql/bin/mssql-conf set filelocation.defaultdumpdir /var/mssql/logs
+# /opt/mssql/bin/mssql-conf set filelocation.errorlogfile /var/mssql/logs
 
 # Enable the mssql service to start on boot
 systemctl enable mssql-server.service
@@ -43,24 +70,5 @@ echo 'd /var/lib/selinux/targeted/active/modules/200/mssql 0700 - - -' > /etc/tm
 
 systemctl enable tuned
 EOF
-
-COPY usr usr
-ADD --chown=mssql:mssql AdventureWorks2022.bak /opt
-ADD --chown=mssql:mssql restore.sql /opt
-ADD --chmod=755 --chown=mssql:mssql mssql_demo.sh /opt
-
-
-# TODO:
-# - RAID
-# - filesystem layout (RAID, how to point mssql to /data, /transactions, /logs)
-# - show how to upgrade -> bootc upgrade
-# - rollbacks -> bootc rollback
-# - manage data section
-# - nofiles
-# - disable last accessed time
-# - FUA (?)
-# - C-states (not covered by tuneD)
-# - SQL Server Agent
-
 
 RUN bootc container lint
